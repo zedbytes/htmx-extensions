@@ -208,19 +208,19 @@ describe('json-enc extension', function() {
     form.innerHTML.should.equal('OK')
   })
 
-  it('handles nested JSON properly', function() {
+  it('handles deeply nested JSON structures properly', function() {
     this.server.respondWith('POST', '/test', function(xhr) {
       var values = JSON.parse(xhr.requestBody)
-      values.should.have.keys('user', 'address', 'preferences')
-      values.user.should.have.keys('firstName', 'lastName')
+      values.should.have.key('user')
+      values.user.should.have.keys('firstName', 'lastName', 'address')
       values.user.firstName.should.equal('John')
       values.user.lastName.should.equal('Doe')
-      values.address.should.have.keys('street', 'city')
-      values.address.street.should.equal('123 Main St')
-      values.address.city.should.equal('Anytown')
-      values.preferences.should.have.keys('theme', 'notifications')
-      values.preferences.theme.should.equal('dark')
-      values.preferences.notifications.should.equal('on')  // Changed from true to 'on'
+      values.user.address.should.have.keys('street', 'city', 'postcode')
+      values.user.address.street.should.equal('123 Main St')
+      values.user.address.city.should.equal('Anytown')
+      values.user.address.postcode.should.have.keys('format', 'pin')
+      values.user.address.postcode.format.should.equal('AA-9999')
+      values.user.address.postcode.pin.should.equal('12345')
       xhr.respond(200, {}, 'OK')
     })
   
@@ -228,10 +228,37 @@ describe('json-enc extension', function() {
       <form hx-post="/test" hx-ext="json-enc">
         <input type="text" name="user.firstName" value="John">
         <input type="text" name="user.lastName" value="Doe">
-        <input type="text" name="address.street" value="123 Main St">
-        <input type="text" name="address.city" value="Anytown">
-        <input type="text" name="preferences.theme" value="dark">
-        <input type="checkbox" name="preferences.notifications" checked>
+        <input type="text" name="user.address.street" value="123 Main St">
+        <input type="text" name="user.address.city" value="Anytown">
+        <input type="text" name="user.address.postcode.format" value="AA-9999">
+        <input type="text" name="user.address.postcode.pin" value="12345">
+        <button id="btnSubmit">Submit</button>
+      </form>
+    `)
+  
+    byId('btnSubmit').click()
+    this.server.respond()
+    form.innerHTML.should.equal('OK')
+  })
+
+  it('handles conflicts in nested structures with precedence to direct assignments', function() {
+    this.server.respondWith('POST', '/test', function(xhr) {
+      var values = JSON.parse(xhr.requestBody)
+      values.should.have.key('user')
+      values.user.should.have.keys('name', 'address')
+      values.user.name.should.equal('John Doe')
+      values.user.address.should.equal('123 Main St')  // Direct assignment takes precedence
+      values.user.should.not.have.nested.property('address.street')  // Nested property should not exist
+      values.user.should.not.have.nested.property('address.city')    // Nested property should not exist
+      xhr.respond(200, {}, 'OK')
+    })
+  
+    var form = make(`
+      <form hx-post="/test" hx-ext="json-enc">
+        <input type="text" name="user.name" value="John Doe">
+        <input type="text" name="user.address" value="123 Main St">
+        <input type="text" name="user.address.street" value="Elm Street">
+        <input type="text" name="user.address.city" value="Springfield">
         <button id="btnSubmit">Submit</button>
       </form>
     `)
