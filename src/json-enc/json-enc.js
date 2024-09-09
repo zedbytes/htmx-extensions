@@ -16,10 +16,26 @@
 
       const vals = api.getExpressionVars(elt)
       const object = {}
+
+      function setNestedValue(obj, path, value) {
+        const keys = path.split('.')
+        let current = obj
+        for (let i = 0; i < keys.length - 1; i++) {
+          if (!current[keys[i]]) {
+            current[keys[i]] = {}
+          }
+          current = current[keys[i]]
+        }
+        current[keys[keys.length - 1]] = value
+      }
+
       parameters.forEach(function(value, key) {
         // FormData encodes values as strings, restore hx-vals/hx-vars with their initial types
         const typedValue = Object.hasOwn(vals, key) ? vals[key] : value
-        if (Object.hasOwn(object, key)) {
+
+        if (key.includes('.')) {
+          setNestedValue(object, key, typedValue)
+        } else if (Object.hasOwn(object, key)) {
           if (!Array.isArray(object[key])) {
             object[key] = [object[key]]
           }
@@ -29,7 +45,7 @@
         }
       })
 
-      return (JSON.stringify(object))
+      return JSON.stringify(object)
     }
   })
 })()

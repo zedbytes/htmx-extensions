@@ -207,4 +207,37 @@ describe('json-enc extension', function() {
     this.server.respond()
     form.innerHTML.should.equal('OK')
   })
+
+  it('handles nested JSON properly', function() {
+    this.server.respondWith('POST', '/test', function(xhr) {
+      var values = JSON.parse(xhr.requestBody)
+      values.should.have.keys('user', 'address', 'preferences')
+      values.user.should.have.keys('firstName', 'lastName')
+      values.user.firstName.should.equal('John')
+      values.user.lastName.should.equal('Doe')
+      values.address.should.have.keys('street', 'city')
+      values.address.street.should.equal('123 Main St')
+      values.address.city.should.equal('Anytown')
+      values.preferences.should.have.keys('theme', 'notifications')
+      values.preferences.theme.should.equal('dark')
+      values.preferences.notifications.should.equal('on')  // Changed from true to 'on'
+      xhr.respond(200, {}, 'OK')
+    })
+  
+    var form = make(`
+      <form hx-post="/test" hx-ext="json-enc">
+        <input type="text" name="user.firstName" value="John">
+        <input type="text" name="user.lastName" value="Doe">
+        <input type="text" name="address.street" value="123 Main St">
+        <input type="text" name="address.city" value="Anytown">
+        <input type="text" name="preferences.theme" value="dark">
+        <input type="checkbox" name="preferences.notifications" checked>
+        <button id="btnSubmit">Submit</button>
+      </form>
+    `)
+  
+    byId('btnSubmit').click()
+    this.server.respond()
+    form.innerHTML.should.equal('OK')
+  })
 })
